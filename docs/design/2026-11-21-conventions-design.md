@@ -1,0 +1,166 @@
+# @radandevist/conventions — design
+
+Date: 2026-11-21 · Owner: Radan · Status: draft, awaiting owner approval
+
+## Intent and why
+
+Radan keeps a growing set of rules: code quality limits, dependency hygiene, lint and format
+settings, and how AI agents must work (draft PRs, annotated screenshots, one worktree per agent…).
+Today each rule is copied by hand into every project: the owner's private memory, each repo's
+`AGENTS.md`, each repo's lint config and CI. A copy is eventually forgotten or goes stale, and the
+owner has to repeat himself. Owner, 2026-11-20: « j'ai un tas de règles et préférences et je
+voudrais qu'elles soient centralisées et j'en ai marre de répéter tout encore et encore à chaque
+projet ».
+
+The model already works for UI rules: they are written once in `@radandevist/radan-ui`
+(`docs/rules/`) and PublyApp only links to them. This package applies the same model to every
+other kind of rule.
+
+## Goals
+
+1. A rule is written **once**, here, and every consuming project receives it by updating the
+   package.
+2. A rule ships **with the tool that enforces it** when one exists (CI gate, lint config), so the
+   text and the check never drift apart.
+3. Each project keeps only what is truly its own: its numbers (baseline, zones), its paths, its
+   exceptions.
+
+## Non-goals
+
+- UI rules: they stay in radan-ui (`docs/rules/`). This package links to them, never copies them.
+- Project-specific architecture rules (PublyApp's C# standards, route design, module structure):
+  they stay in each repo.
+- DigitalPrevention and any client project: **never** a consumer (owner decision 2026-11-20). They
+  keep their own copies.
+
+## Anti-goals (failure even if it technically works)
+
+- A new rule landing silently and turning every project's CI red at once.
+- A rule existing in two places again (here and copied in a repo).
+- A package so tied to PublyApp that ShopKartOS cannot adopt it without PublyApp's shape (C# API,
+  zones…).
+
+## Owner decisions (2026-11-20)
+
+| # | Decision |
+|---|---|
+| 1 | One **public** npm package, `@radandevist/conventions`, public GitHub repo `radandevist/conventions`. |
+| 2 | It holds three families: (a) code-quality rules **with** their tools, (b) the shared lint/format config, (c) the agents' working rules as text. |
+| 3 | UI rules stay in radan-ui. |
+| 4 | Consumers: PublyApp, ShopKartOS, radan-ui, future personal projects. Never DigitalPrevention. |
+| 5 | Delivery: each project pins an exact version; a new rule = a new version + one bump PR per project. Same as radan-ui. |
+| 6 | The lint/format config **moves** from radan-ui to this package; radan-ui keeps the old entry for one minor with a deprecation warning, then removes it. |
+| 7 | Each project keeps its own numbers and zones; the package provides the rule and the tool. |
+
+## Contents
+
+### (a) Code quality — rules + tools
+
+Generalised from PublyApp's palier 1 (`AGENTS.md` « Code quality — palier 1 »,
+`packages/scripts-ts/src/check-quality-ratchet.ts`, `docs/guides/quality-ratchet.md`):
+
+- **Quality ratchet CLI** (`conventions quality`): runs `@coderot-ai/cli` (pinned version + tree
+  hash, local mode only, never `ci` upload mode), aggregates complexity and duplication per 1,000
+  SLOC **per zone**, compares with the project's committed baseline, fails if a zone rises beyond
+  tolerance, enforces the per-function cognitive-complexity cap on added/modified functions, and
+  the PR size cap. Fail-closed on missing/partial coverage. Reads the baseline at the PR's base SHA.
+- **Project config** (in the consuming repo, e.g. `quality.config.json`): zones (globs and
+  precedence), baseline values, tolerance, function cap, PR size cap, owner-only label names, and
+  `ownerApproved` raise entries. The numbers live here, never in the package.
+- **Palier text**: the rule as prose (`rules/quality.md`), versioned. A palier change (e.g. cap 15 →
+  12) is a **major** version.
+- **pnpm catalog rule**: the « shared dependency goes through a catalog » text and its check
+  (generalised from PublyApp's `dependency-health-pin-location.test.ts`), with the override
+  carve-out and named catalogs.
+- **Languages rule** (optional per project): PublyApp's « C# and TypeScript only » as a text rule
+  with a check that a project opts into.
+
+### (b) Lint and format config
+
+Moved from `radan-ui/packages/radan-ui/lint/`: `oxlint.json`, `oxfmt.json`, and the `anti-slop`
+oxlint plugin. Exposed as package exports (e.g. `@radandevist/conventions/oxlint`), extended by
+each project's own `.oxlintrc.json`.
+
+### (c) Agents' working rules (text)
+
+One markdown file per rule under `rules/agents/`, plus an index, written in English for agents,
+each with a short « why ». First set, from the owner's existing rules:
+
+- Draft PR from the first commit; PR title in English Conventional Commits; PR/issue numbers shown
+  as clickable links.
+- One git worktree per agent; never the shared clone; never `docker prune`; kill only exact PIDs.
+- Every UI PR carries annotated screenshots (red frames/arrows/numbers, UI in the project's
+  language), opened and checked before posting.
+- Reviews by a fresh session that did not write the code; no merge with a CRITICAL/MAJOR/MEDIUM
+  finding; the owner approves each merge.
+- Secrets: never read `.env*`, never print keys/tokens.
+- Talking to the owner: simple French, one decision per message with context, example, options and
+  a recommendation; recaps as « Fait / En cours / Après ».
+
+Projects link the index from their `AGENTS.md` (path inside `node_modules`, so the pinned version
+is what agents read), exactly like PublyApp links radan-ui's rules today.
+
+## Consumption
+
+- Each project: `"@radandevist/conventions": "<exact version>"` as a dev dependency (through the
+  pnpm catalog where it applies), a `quality.config.json`, an `.oxlintrc.json` extending the shared
+  one, and a short block in `AGENTS.md` linking the rule index.
+- CI: one job step `conventions quality` (replaces PublyApp's bespoke script).
+- A new rule: changeset → version PR → publish → one bump PR per project; the bump PR shows the
+  new failures, if any, and is merged only once green.
+
+## Publishing
+
+Same as radan-ui: changesets, `changesets/action@v2`, npm Trusted Publishing (OIDC, provenance), no
+npm token, release on push to `main`. Node ≥ the version PublyApp uses. TypeScript sources run with
+Node's type stripping (PublyApp's « TypeScript only » rule), compiled output published for
+consumers.
+
+## Migration order
+
+1. **Package v0.1**: ratchet CLI + catalog check + rule texts, extracted from PublyApp with tests.
+2. **PublyApp adopts it**: replace `check-quality-ratchet.ts`, its baseline and the catalog test by
+   the package + `quality.config.json` (same numbers); `AGENTS.md` sections become links. Must stay
+   green with identical measurements.
+3. **Lint config moves**: package minor adds `oxlint`/`oxfmt`/`anti-slop`; radan-ui re-exports with
+   a deprecation warning for one minor, then removes; PublyApp adopts it (absorbs PublyApp issue
+   #2435).
+4. **ShopKartOS adopts it** (its own zones and baseline).
+5. **radan-ui adopts it** for its own quality and lint.
+
+## Calls made by the author (not owner decisions — the owner may overturn them)
+
+Settled after the builder check of 2026-11-21:
+
+1. **Owner-only controls are not configurable.** The label names (`size-exception`,
+   `quality-baseline-exception`) and the rule « only the owner raises a baseline or allows a large
+   PR » are constants in the package, never in a file a PR can edit. Each consuming repo protects
+   its `quality.config.json` (numbers + `ownerApproved` entries) with CODEOWNERS, as PublyApp does
+   today; the CLI reads it at the PR's base SHA, so a PR cannot loosen its own gate.
+2. **C# stays in scope.** The CLI measures every language coderot supports (C# and TypeScript at
+   least), because PublyApp must reproduce its baseline exactly. Exclusions (generated files,
+   migrations, worktrees, generated clients) and test-file detection are config entries with
+   sensible defaults; PublyApp's current patterns become its config.
+3. **Catalog check semantics** = PublyApp's AGENTS.md catalog rule (merged with PublyApp issue
+   #2447): every dependency (dependencies, devDependencies, optionalDependencies, peerDependencies)
+   declared in two or more workspace manifests goes through a pnpm catalog (default or named); an
+   override-pinned dependency appears in no catalog and is exact-pinned in each manifest; a
+   single-workspace dependency stays local. Exposed as a CLI subcommand (`conventions catalog`),
+   not a lint rule.
+4. **Lint config is split.** `oxlint` (base, framework-free TypeScript), `oxlint-react` (extends
+   base + React settings/rules), `oxfmt`, and the `anti-slop` plugin move. radan-ui's `house`
+   plugin: rules that are generic move to the package; rules about radan-ui's own components stay
+   in radan-ui. radan-ui's old entry re-exports the new ones for one minor with a warning.
+5. **The package owns the coderot pin.** `@coderot-ai/cli` is an exact dependency of the package,
+   and the integrity hash is checked by the package. A coderot bump is a package release, which the
+   per-project bump PR then shows.
+6. **GitHub-specific is fine.** All consumers are on GitHub. The CLI keeps PublyApp's event handling
+   (`pull_request` with labels, `merge_group` without), which needs no switch: a repo without a
+   merge queue simply never sends `merge_group`. Local overrides (`QUALITY_BASE`,
+   `QUALITY_SIZE_EXCEPTION`) stay.
+
+## Left to the builder
+
+- Exact CLI shape and config schema (keep it minimal; YAGNI).
+- How to generalise the zone model so ShopKartOS (TypeScript only) needs no PublyApp concepts.
+- Whether the PublyApp-specific checks (CODEOWNERS contract, label names) stay in PublyApp.
