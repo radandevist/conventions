@@ -86,8 +86,9 @@ each project's own `.oxlintrc.json`.
 
 ### (c) Agents' working rules (text)
 
-One markdown file per rule under `rules/agents/`, plus an index, written in English for agents,
-each with a short « why ». First set, from the owner's existing rules:
+One markdown file per rule under `rules/agents/` (quality in `rules/quality.md`, CI in `rules/ci.md`),
+plus one index of all rules, written in English for agents, each with a short « why ». First set,
+from the owner's existing rules:
 
 - Draft PR from the first commit; PR title in English Conventional Commits; PR/issue numbers shown
   as clickable links.
@@ -100,40 +101,45 @@ each with a short « why ». First set, from the owner's existing rules:
 - Talking to the owner: simple French, one decision per message with context, example, options and
   a recommendation; recaps as « Fait / En cours / Après ».
 
-Projects link the index from their `AGENTS.md` through a versioned GitHub URL
-(`https://github.com/radandevist/conventions/blob/<tag>/rules/agents/index.md`), so agents read the
-pinned version even before install and on GitHub. The `node_modules` path comes in addition, for
-local use only.
+The index lists every rule file: agents, quality, catalog and CI. Projects link that single index
+from their `AGENTS.md` through a versioned GitHub URL
+(`https://github.com/radandevist/conventions/blob/<tag>/rules/index.md`), so agents read the pinned
+version even before install and on GitHub. The `node_modules` path comes in addition, for local use
+only.
 
 ## Consumption
 
 - Each project: `"@radandevist/conventions": "<exact version>"` as a dev dependency (through the
-  pnpm catalog where it applies), a `quality.config.json`, an `.oxlintrc.json` extending the shared
-  one, and a short block in `AGENTS.md` linking the rule index.
-- CI: one job step `conventions quality` (replaces PublyApp's bespoke script).
-- A new rule: changeset → version PR → publish → one bump PR per project; the bump PR shows the
-  new failures, if any, and is merged only once green.
+  pnpm catalog where it applies), a `quality.config.json`, an `.oxlintrc.json` extending
+  `@radandevist/conventions/oxlint-react` for React projects or `@radandevist/conventions/oxlint` for
+  framework-free TypeScript, and a short block in `AGENTS.md` linking the rule index.
+- CI: job steps `conventions quality` (replaces PublyApp's bespoke script) and `conventions catalog`
+  (replaces the catalog test removed in migration step 2).
+- A new rule: changeset → version PR → publish → one bump PR per project; the bump PR also updates
+  the tag in the project's versioned GitHub rule link, shows the new failures, if any, and is merged
+  only once green.
 
 ## Publishing
 
 Same as radan-ui: changesets, `changesets/action@v2`, npm Trusted Publishing (OIDC, provenance), no
 npm token, release on push to `main`. Node ≥ the version PublyApp uses. TypeScript sources run with
 Node's type stripping (PublyApp's « TypeScript only » rule), compiled output published for
-consumers.
+consumers, with `rules/` in the published `files`.
 
 ## Migration order
 
 1. **Package v0.1**: ratchet CLI + catalog check + rule texts, extracted from PublyApp with tests.
 2. **PublyApp adopts it**: replace `check-quality-ratchet.ts`, its baseline and the catalog test by
-   the package + `quality.config.json` (same numbers); `AGENTS.md` sections become links. Must stay
-   green with identical measurements.
-3. **Lint config moves**: package minor adds `oxlint`/`oxfmt`/`anti-slop`; radan-ui re-exports with
-   a deprecation warning for one minor, then removes; PublyApp adopts it (absorbs PublyApp issue
-   #2435).
+   the package + `quality.config.json` (same numbers); `conventions catalog` runs in CI in place of
+   the removed catalog test; `AGENTS.md` sections become links. Must stay green with identical
+   measurements.
+3. **Lint config moves**: package minor adds `oxlint`/`oxlint-react`/`oxfmt`/`anti-slop`; radan-ui
+   re-exports with a deprecation warning for one minor, then removes; PublyApp, a React project,
+   adopts `oxlint-react` (absorbs PublyApp issue #2435).
 4. **ShopKartOS adopts it** (its own zones and baseline).
 5. **radan-ui adopts it** for its own quality and lint.
 
-## Calls made by the author (not owner decisions — the owner may overturn them)
+## Calls made by the author, approved with the design on 2026-11-24
 
 Settled after the builder check of 2026-11-21:
 
@@ -171,4 +177,6 @@ Settled after the builder check of 2026-11-21:
 
 - Exact CLI shape and config schema (keep it minimal; YAGNI).
 - How to generalise the zone model so ShopKartOS (TypeScript only) needs no PublyApp concepts.
-- Whether the PublyApp-specific checks (CODEOWNERS contract, label names) stay in PublyApp.
+- Whether the PublyApp-specific checks (CODEOWNERS contract) stay in PublyApp; the label names and
+  the owner-only rule remain package constants (choice 1); every repo protects `quality.config.json`
+  with CODEOWNERS.
