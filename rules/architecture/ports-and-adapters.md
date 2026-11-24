@@ -38,10 +38,13 @@ your code ──► Service                       (what the code calls; does the
   one `MastodonSocialAdapter` implements `ISocialConnector` and `ISocialPublisher`. A network that can
   only publish implements only `ISocialPublisher`, never a method that throws "not supported". Why: the
   API's URLs, errors and tokens must be known in one place.
-- **Business code imports the service or a port, never an adapter.** Only two places import adapters:
-  the wiring (`index.ts`, DI registration) and tests. Why: then changing an adapter touches the wiring
-  alone, never a caller.
-- **Tests use a memory adapter** (`MemoryLoggerAdapter`, a fake sender) and assert on what it
+- **Business code (controllers, jobs, components) calls the service only**, never a port or an
+  adapter. The port is known by the service, the wiring and tests; adapters are known by the wiring
+  (`index.ts`, DI registration, or a small registry that picks the adapter per account or network) and
+  by tests. Why: then changing or adding an adapter touches the wiring alone, never a caller. The
+  service exists even when its shared work is small (a journal entry, encrypting a token): it is the
+  one place that work will grow.
+- **Tests use a memory adapter** (`MemoryLoggerAdapter`, `MemoryEmailAdapter`) and assert on what it
   received, never by spying on `console` or a global. Why: a spy still passes when the code stops
   writing, so it cannot prove "written, and without the secret".
 
@@ -115,15 +118,16 @@ export class Logger {
 }
 
 export class WinstonLoggerAdapter implements ILogger {
-  readonly #winston = createWinston();
+  // level 'debug': the service already filtered; the adapter must not filter again
+  readonly #winston = winston.createLogger({ level: 'debug', transports: [new winston.transports.Console()] });
 
   write(entry: LogEntry): void {
-    this.#winston.log({ level: entry.level, message: entry.message, timestamp: entry.time.toISOString(), ...entry.meta });
+    this.#winston.log({ ...entry.meta, level: entry.level, message: entry.message, timestamp: entry.time.toISOString() });
   }
 }
 ```
 
-C#, one adapter implementing two small ports:
+C#, one adapter implementing two small ports, used only through the services:
 
 ```csharp
 public interface ISocialConnector {
@@ -137,5 +141,20 @@ public interface ISocialPublisher {
 public class MastodonSocialAdapter(HttpClient http) : ISocialConnector, ISocialPublisher {
 	public Task<SocialAccount> ConnectAsync(ConnectRequest request, CancellationToken ct) => /* POST /oauth/token */;
 	public Task<PublishReceipt> PublishAsync(Post post, CancellationToken ct) => /* POST /api/v1/statuses */;
+}
+
+// wiring picks the adapter per network; the service does the shared work once
+public class PublishService(ISocialAdapterRegistry adapters, IPublishAttemptJournal journal) {
+	public async Task<PublishReceipt> PublishAsync(Post post, CancellationToken ct) {
+		journal.Start(post);
+		var receipt = await adapters.Publisher(post.Network).PublishAsync(post, ct);
+		journal.Succeed(post, receipt);
+		return receipt;
+	}
+}
+
+// business code: knows the service only
+public class PublishNowEndpoint(PublishService publishing) {
+	public Task Handle(Post post, CancellationToken ct) => publishing.PublishAsync(post, ct);
 }
 ```

@@ -47,7 +47,7 @@ other kind of rule.
 | # | Decision |
 |---|---|
 | 1 | One **public** npm package, `@radandevist/conventions`, public GitHub repo `radandevist/conventions`. |
-| 2 | It holds three families: (a) code-quality rules **with** their tools, (b) the shared lint/format config, (c) the agents' working rules as text. |
+| 2 | It holds three families: (a) code-quality rules **with** their tools, (b) the shared lint/format config, (c) the agents' working rules as text (cross-project architecture rules, such as ports and adapters, ship as text with this family). |
 | 3 | UI rules stay in radan-ui. |
 | 4 | Consumers: PublyApp, ShopKartOS, radan-ui, future personal projects. Never DigitalPrevention. |
 | 5 | Delivery: each project pins an exact version; a new rule = a new version + one bump PR per project. Same as radan-ui. |
