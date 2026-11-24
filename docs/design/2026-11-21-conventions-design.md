@@ -1,6 +1,6 @@
 # @radandevist/conventions — design
 
-Date: 2026-11-21 · Owner: Radan · Status: draft, awaiting owner approval
+Date: 2026-11-21 · Owner: Radan · Status: approved by the owner on 2026-11-24
 
 ## Intent and why
 
@@ -59,16 +59,19 @@ other kind of rule.
 Generalised from PublyApp's palier 1 (`AGENTS.md` « Code quality — palier 1 »,
 `packages/scripts-ts/src/check-quality-ratchet.ts`, `docs/guides/quality-ratchet.md`):
 
-- **Quality ratchet CLI** (`conventions quality`): runs `@coderot-ai/cli` (pinned version + tree
-  hash, local mode only, never `ci` upload mode), aggregates complexity and duplication per 1,000
+- **Quality ratchet CLI** (`conventions quality`): runs the bundled `@coderot-ai/cli` (local mode
+  only, never `ci` upload mode), aggregates complexity and duplication per 1,000
   SLOC **per zone**, compares with the project's committed baseline, fails if a zone rises beyond
   tolerance, enforces the per-function cognitive-complexity cap on added/modified functions, and
-  the PR size cap. Fail-closed on missing/partial coverage. Reads the baseline at the PR's base SHA.
+  the PR size cap. Fail-closed on an empty or invalid scan and on a file judged missing; a partial
+  scan that still returns valid clones is a known limit. Reads the baseline, thresholds and zones
+  at the PR's base SHA.
 - **Project config** (in the consuming repo, e.g. `quality.config.json`): zones (globs and
-  precedence), baseline values, tolerance, function cap, PR size cap, owner-only label names, and
-  `ownerApproved` raise entries. The numbers live here, never in the package.
-- **Palier text**: the rule as prose (`rules/quality.md`), versioned. A palier change (e.g. cap 15 →
-  12) is a **major** version.
+  precedence), baseline values, tolerance, function cap, PR size cap, and `ownerApproved` raise
+  entries. The numbers live here, never in the package.
+- **Palier text**: the rule as prose (`rules/quality.md`), versioned. A change in a rule's meaning
+  is a **major** version; a change of tier or number (e.g. cap 15 → 12) is a config PR in the
+  project.
 - **pnpm catalog rule**: the « shared dependency goes through a catalog » text and its check
   (generalised from PublyApp's `dependency-health-pin-location.test.ts`), with the override
   carve-out and named catalogs.
@@ -97,8 +100,10 @@ each with a short « why ». First set, from the owner's existing rules:
 - Talking to the owner: simple French, one decision per message with context, example, options and
   a recommendation; recaps as « Fait / En cours / Après ».
 
-Projects link the index from their `AGENTS.md` (path inside `node_modules`, so the pinned version
-is what agents read), exactly like PublyApp links radan-ui's rules today.
+Projects link the index from their `AGENTS.md` through a versioned GitHub URL
+(`https://github.com/radandevist/conventions/blob/<tag>/rules/agents/index.md`), so agents read the
+pinned version even before install and on GitHub. The `node_modules` path comes in addition, for
+local use only.
 
 ## Consumption
 
@@ -136,7 +141,9 @@ Settled after the builder check of 2026-11-21:
    `quality-baseline-exception`) and the rule « only the owner raises a baseline or allows a large
    PR » are constants in the package, never in a file a PR can edit. Each consuming repo protects
    its `quality.config.json` (numbers + `ownerApproved` entries) with CODEOWNERS, as PublyApp does
-   today; the CLI reads it at the PR's base SHA, so a PR cannot loosen its own gate.
+   today; the CLI reads thresholds and zones at the PR's base SHA, so a PR cannot loosen its own
+   gate, and reads only the `ownerApproved` additions made by the PR at the head SHA, which
+   CODEOWNERS protects.
 2. **C# stays in scope.** The CLI measures every language coderot supports (C# and TypeScript at
    least), because PublyApp must reproduce its baseline exactly. Exclusions (generated files,
    migrations, worktrees, generated clients) and test-file detection are config entries with
@@ -151,9 +158,10 @@ Settled after the builder check of 2026-11-21:
    base + React settings/rules), `oxfmt`, and the `anti-slop` plugin move. radan-ui's `house`
    plugin: rules that are generic move to the package; rules about radan-ui's own components stay
    in radan-ui. radan-ui's old entry re-exports the new ones for one minor with a warning.
-5. **The package owns the coderot pin.** `@coderot-ai/cli` is an exact dependency of the package,
-   and the integrity hash is checked by the package. A coderot bump is a package release, which the
-   per-project bump PR then shows.
+5. **The package owns the coderot pin.** `@coderot-ai/cli` and its whole dependency closure are
+   bundled into the package, so a consumer's lockfile cannot resolve a different version of
+   coderot or of anything it depends on. A bump anywhere in that closure is a package release,
+   which the per-project bump PR then shows.
 6. **GitHub-specific is fine.** All consumers are on GitHub. The CLI keeps PublyApp's event handling
    (`pull_request` with labels, `merge_group` without), which needs no switch: a repo without a
    merge queue simply never sends `merge_group`. Local overrides (`QUALITY_BASE`,
