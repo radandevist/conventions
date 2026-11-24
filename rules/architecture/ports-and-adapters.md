@@ -55,7 +55,7 @@ your code ──► Service                       (what the code calls; does the
 - **Port: `I` + the role it plays**, as a noun (the service does not implement its own port: `Logger`
   uses an `ILogger` adapter, it is not one): `ILogger`, `IEmailSender`, `ISmsSender`,
   `ISocialPublisher`. In .NET, never reuse a framework name (`Microsoft.Extensions.Logging.ILogger`):
-  pick another role noun (`ILogWriter`). Why: the name says what the caller gets, and a clash with a
+  pick another role noun (`ILogWriter`). Why: the name says what an adapter must be, and a clash with a
   framework type causes wrong imports.
 - **Adapter: library (or API, or medium) + function + `Adapter`**: `WinstonLoggerAdapter`,
   `JsonLoggerAdapter`, `MemoryLoggerAdapter`, `PostHogAnalyticsAdapter`, `ResendEmailAdapter`,
@@ -155,7 +155,7 @@ public class PublishService(ISocialAdapterRegistry adapters, IPublishAttemptJour
 			var receipt = await adapters.Publisher(post.Network).PublishAsync(post, ct);
 			journal.Succeed(post, receipt);
 			return receipt;
-		} catch (Exception ex) {
+		} catch (Exception ex) when (ex is not OperationCanceledException) {
 			journal.Fail(post, ex);
 			throw;
 		}
