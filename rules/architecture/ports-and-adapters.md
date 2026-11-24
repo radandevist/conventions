@@ -52,7 +52,8 @@ your code ──► Service                       (what the code calls; does the
 
 - **Service: named for its function**: `Logger`, `EmailService`, `Analytics`. Why: it is what callers
   see; the plain name reads best at the call site.
-- **Port: `I` + the role it plays**, as a noun: `ILogger`, `IEmailSender`, `ISmsSender`,
+- **Port: `I` + the role it plays**, as a noun (the service does not implement its own port: `Logger`
+  uses an `ILogger` adapter, it is not one): `ILogger`, `IEmailSender`, `ISmsSender`,
   `ISocialPublisher`. In .NET, never reuse a framework name (`Microsoft.Extensions.Logging.ILogger`):
   pick another role noun (`ILogWriter`). Why: the name says what the caller gets, and a clash with a
   framework type causes wrong imports.
@@ -66,9 +67,10 @@ your code ──► Service                       (what the code calls; does the
 
 ## 3. Files
 
-- **TypeScript files are in kebab-case**, with the adapters in an `adapters/` folder next to the
-  service. Why: one casing for every TS file makes paths predictable and avoids case-only renames
-  that break on case-insensitive file systems.
+- **TypeScript: the service, port and adapter files are in kebab-case**, with the adapters in an
+  `adapters/` folder next to the service. Other folders keep the project's own casing (UI file naming
+  belongs to radan-ui). Why: the file name repeats the class name word for word, so an adapter is
+  found by its name, and kebab-case avoids case-only renames that break on case-insensitive disks.
 
   ```
   lib/logger/
@@ -139,17 +141,24 @@ public interface ISocialPublisher {
 }
 
 public class MastodonSocialAdapter(HttpClient http) : ISocialConnector, ISocialPublisher {
-	public Task<SocialAccount> ConnectAsync(ConnectRequest request, CancellationToken ct) => /* POST /oauth/token */;
-	public Task<PublishReceipt> PublishAsync(Post post, CancellationToken ct) => /* POST /api/v1/statuses */;
+	public Task<SocialAccount> ConnectAsync(ConnectRequest request, CancellationToken ct) =>
+		throw new NotImplementedException(); // POST /oauth/token
+	public Task<PublishReceipt> PublishAsync(Post post, CancellationToken ct) =>
+		throw new NotImplementedException(); // POST /api/v1/statuses
 }
 
 // wiring picks the adapter per network; the service does the shared work once
 public class PublishService(ISocialAdapterRegistry adapters, IPublishAttemptJournal journal) {
 	public async Task<PublishReceipt> PublishAsync(Post post, CancellationToken ct) {
 		journal.Start(post);
-		var receipt = await adapters.Publisher(post.Network).PublishAsync(post, ct);
-		journal.Succeed(post, receipt);
-		return receipt;
+		try {
+			var receipt = await adapters.Publisher(post.Network).PublishAsync(post, ct);
+			journal.Succeed(post, receipt);
+			return receipt;
+		} catch (Exception ex) {
+			journal.Fail(post, ex);
+			throw;
+		}
 	}
 }
 
