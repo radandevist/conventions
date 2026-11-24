@@ -7,14 +7,15 @@ radandevist/shopkart-os#331, radandevist/radan-ui#88) and PublyApp's CI lessons.
 **What is shared and what is not.** Shared tools from this package (`conventions quality`,
 `conventions catalog`, see the [design](../docs/design/2026-11-21-conventions-design.md)) replace a
 project's own copy of the same check. Everything else stays project-owned: workflow files, deploy and
-selftest scripts, the numbers (time budgets, PR size cap) and which checks are required.
+selftest scripts, the PR size cap and which checks are required. The time budgets of §1 are shared: each
+project owns how it meets them (workflow, steps, caches), not the numbers.
 
 Measured results:
 
 | Project | Before | After | What did it |
 |---|---|---|---|
 | ShopKartOS `pnpm verify` (local gate, no GitHub CI) | 3.9 min | ~37 s (45 s under load) | bounded parallel pool of independent steps; the browser layout check (115 s → ~32 s, the longest step) in a bounded browser pool; faster deploy selftest |
-| radan-ui PR CI | 118 s p50 / 310 s p95 | 60–71 s (target below not reached yet) | independent jobs instead of `needs:` chains; cancel superseded PR runs; slow native job split in a matrix; cached native install; heavy nav-stress only when its paths change |
+| radan-ui PR CI | 118 s p50 / 310 s p95 | 60–71 s over the first 3 runs (p95 not measured yet; target below not reached yet) | independent jobs instead of `needs:` chains; cancel superseded PR runs; slow native job split in a matrix; cached native install; heavy nav-stress only when its paths change |
 
 ## 1. Two gates, two budgets
 
@@ -25,8 +26,9 @@ Measured results:
   gate plus every heavy check whose inputs the change touches (see §3, affected-only). It may take
   longer than the PR gate; its list is written down in each project.
 - **Nightly**: heavy full runs (e.g. radan-ui's full nav-stress, ~10 min) also run on main every night.
-  A nightly run is **not** a merge gate: anything a change can break must be in the merge gate through
-  its path filter. A red nightly blocks the next merges until it is fixed.
+  A nightly run is **an alert, not a gate**: anything a change can break must be in the merge gate
+  through its path filter. A red nightly does not block green PRs; it opens a fix (or a revert of the
+  culprit) the same day, and a flaky nightly is a bug to fix like any flake.
 
 ## 2. Never buy speed with honesty
 
@@ -46,8 +48,9 @@ Measured results:
 - **Run independent steps in parallel, in a bounded pool** (`min(4, cores)` by default, overridable by
   env). Steps that share a resource (database file, build output, port, browser profile) declare it and
   take a read or write lock: **isolation groups**, never "hope they don't collide".
-- **Stop at the first failure** as soon as a step exits non-zero; kill the rest; print which step failed
-  and where its log is. Logs per step in a known folder; one header line per step (id, status, ms).
+- **Stop at the first failure**: as soon as a step exits non-zero, start no new step; let the steps
+  already running finish (killing a writer can leave a half-written database or build output), then
+  report the failed and the not-run steps and where their logs are. Logs per step in a known folder; one header line per step (id, status, ms).
 - **Independent CI jobs, not chains.** Drop `needs:` unless a job truly consumes another's output.
 - **Cancel superseded runs on pull requests only.** Use one group per PR and a unique group per run
   elsewhere, so a queued run on main is never cancelled:
@@ -62,9 +65,11 @@ Measured results:
   in their input paths change (path filters), and in full on main. When in doubt about what a change
   affects, run everything.
 - **A path-filtered job is never a required check by itself.** GitHub leaves a required check that did
-  not run as "Expected — waiting", and the PR cannot merge. Either keep it out of the required list
-  (radan-ui: only `check` is required), or put it behind an always-running aggregator job with the
-  required name that passes when no path matched and runs the suite otherwise.
+  not run as "Expected — waiting", and the PR cannot merge. A heavy check that belongs to the merge gate
+  goes behind an always-running, required **aggregator** job that passes when no path matched and runs
+  (or waits for) the suite otherwise. Leaving a path-filtered check out of the required list is allowed
+  only if something else required enforces it; otherwise it is not a gate, and the merger must wait for
+  it by hand (radan-ui today: only `check` is required, so a merger waits for `nav-stress` when it runs).
 - **Split a slow job** into a matrix when its parts are independent; shard tests only with a coverage
   guard that uses the test tool's own rule (never a hand-written list that can drop files).
 - **Use the tool's own rules, never re-implement them** (lint rules, test selection, coverage).
@@ -82,5 +87,5 @@ Measured results:
 ## 5. Size and review
 
 - CI changes ship as small PRs, one change each, with numbers, within the project's own PR size cap and
-  its exclusions (e.g. PublyApp: 600 changed lines, excluding tests, generated files and lockfiles).
+  its exclusions (e.g. PublyApp: 600 changed lines; its own exclusion list — tests, generated files, lockfiles, migrations and snapshots — lives in its config).
 - Reviews follow the project's merge gate: no merge while a CRITICAL, MAJOR or MEDIUM finding stands.
