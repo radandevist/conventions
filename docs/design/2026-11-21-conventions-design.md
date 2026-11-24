@@ -104,7 +104,7 @@ from the owner's existing rules:
 - Talking to the owner: simple French, one decision per message with context, example, options and
   a recommendation; recaps as « Fait / En cours / Après ».
 
-The index lists every rule file: agents, quality, catalog and CI. Projects link that single index
+The index lists every rule file: agents, quality, catalog, CI and architecture. Projects link that single index
 from their `AGENTS.md` through a versioned GitHub URL
 (`https://github.com/radandevist/conventions/blob/<tag>/rules/index.md`), so agents read the pinned
 version even before install and on GitHub. The `node_modules` path comes in addition, for local use

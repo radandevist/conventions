@@ -10,4 +10,4 @@ Rules:
 
 - [Index of all rules](rules/index.md) — the single entry point projects link to.
 - [CI rules](rules/ci.md) — fast, honest CI (two gates, budgets, how to make it fast).
-- [Ports and adapters](rules/architecture/ports-and-adapters.md) — service → one-method port → `<Library><Function>Adapter`.
+- [Ports and adapters](rules/architecture/ports-and-adapters.md) — service → small ports (interface segregation) → `<Library><Function>Adapter`.
