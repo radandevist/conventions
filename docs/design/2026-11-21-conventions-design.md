@@ -30,6 +30,8 @@ other kind of rule.
 - UI rules: they stay in radan-ui (`docs/rules/`). This package links to them, never copies them.
 - Project-specific architecture rules (PublyApp's C# standards, route design, module structure):
   they stay in each repo.
+  Cross-project architecture rules the owner fixed for every project (TypeScript and .NET) live here,
+  under `rules/architecture/` (first one: ports and adapters, 2026-11-24).
 - DigitalPrevention and any client project: **never** a consumer (owner decision 2026-11-20). They
   keep their own copies.
 
@@ -86,7 +88,8 @@ each project's own `.oxlintrc.json`.
 
 ### (c) Agents' working rules (text)
 
-One markdown file per rule under `rules/agents/` (quality in `rules/quality.md`, CI in `rules/ci.md`),
+One markdown file per rule under `rules/agents/` (quality in `rules/quality.md`, CI in `rules/ci.md`,
+cross-project architecture under `rules/architecture/`),
 plus one index of all rules, written in English for agents, each with a short « why ». First set,
 from the owner's existing rules:
 
