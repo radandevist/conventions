@@ -30,6 +30,8 @@ other kind of rule.
 - UI rules: they stay in radan-ui (`docs/rules/`). This package links to them, never copies them.
 - Project-specific architecture rules (PublyApp's C# standards, route design, module structure):
   they stay in each repo.
+  Cross-project architecture rules the owner fixed for every project (TypeScript and .NET) live here,
+  under `rules/architecture/` (first one: ports and adapters, 2026-11-24).
 - DigitalPrevention and any client project: **never** a consumer (owner decision 2026-11-20). They
   keep their own copies.
 
@@ -45,7 +47,7 @@ other kind of rule.
 | # | Decision |
 |---|---|
 | 1 | One **public** npm package, `@radandevist/conventions`, public GitHub repo `radandevist/conventions`. |
-| 2 | It holds three families: (a) code-quality rules **with** their tools, (b) the shared lint/format config, (c) the agents' working rules as text. |
+| 2 | It holds three families: (a) code-quality rules **with** their tools, (b) the shared lint/format config, (c) the agents' working rules as text (cross-project architecture rules, such as ports and adapters, ship as text with this family). |
 | 3 | UI rules stay in radan-ui. |
 | 4 | Consumers: PublyApp, ShopKartOS, radan-ui, future personal projects. Never DigitalPrevention. |
 | 5 | Delivery: each project pins an exact version; a new rule = a new version + one bump PR per project. Same as radan-ui. |
@@ -86,7 +88,8 @@ each project's own `.oxlintrc.json`.
 
 ### (c) Agents' working rules (text)
 
-One markdown file per rule under `rules/agents/` (quality in `rules/quality.md`, CI in `rules/ci.md`),
+One markdown file per rule under `rules/agents/` (quality in `rules/quality.md`, CI in `rules/ci.md`,
+cross-project architecture under `rules/architecture/`),
 plus one index of all rules, written in English for agents, each with a short « why ». First set,
 from the owner's existing rules:
 
@@ -101,7 +104,7 @@ from the owner's existing rules:
 - Talking to the owner: simple French, one decision per message with context, example, options and
   a recommendation; recaps as « Fait / En cours / Après ».
 
-The index lists every rule file: agents, quality, catalog and CI. Projects link that single index
+The index lists every rule file: agents, quality, catalog, CI and architecture. Projects link that single index
 from their `AGENTS.md` through a versioned GitHub URL
 (`https://github.com/radandevist/conventions/blob/<tag>/rules/index.md`), so agents read the pinned
 version even before install and on GitHub. The `node_modules` path comes in addition, for local use
