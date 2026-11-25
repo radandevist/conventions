@@ -265,10 +265,10 @@ priority, attempts, validation); `IJobHandler` executes it by `JobType`, the que
 invent a fake that does nothing.
 
 **Shape.** A real implementation that does nothing, so callers call unconditionally. Example from
-PublyApp: `BlueskySocialAdapter` calls its logger without a null check and falls back to
+PublyApp: `BlueskySocialAdapter` (call in `BlueskySocialAdapter.Client.cs`) calls its logger without a null check and falls back to
 `NullLogger<BlueskySocialAdapter>.Instance` at construction.
 ```csharp
-this._Logger.LogInformation("Publishing {PublicationId}", request.PublicationId); // no null check
+this._Logger.LogError("Bluesky createSession returned unparseable JSON …", status); // no null check
 this._Logger = logger ?? NullLogger<BlueskySocialAdapter>.Instance;              // composition edge
 ```
 **When NOT.** Absence is meaningful and must be handled; the no-op would hide a missing dependency or a

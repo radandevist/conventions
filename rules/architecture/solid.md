@@ -36,7 +36,7 @@ and is touched on every release; a caller knows every concrete implementation.
 
 **Example from PublyApp.** A network that can publish implements `ISocialPublisher`; `SocialAdapterRegistry`
 builds the lookup once, and `RoutingPublishAdapter` routes by `request.Provider`. Adding a network does not
-edit the publish job.
+edit the job's routing (the display-label `switch` still needs a case: a known gap).
 
 ```csharp
 public interface ISocialPublisher {
